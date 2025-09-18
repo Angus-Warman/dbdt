@@ -1,4 +1,4 @@
-module dbdt
+module github.com/Angus-Warman/dbdt
 
 go 1.24.6
 
