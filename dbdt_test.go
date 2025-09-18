@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestMain(m *testing.M) {
@@ -270,5 +271,78 @@ func TestAssigningTasks(t *testing.T) {
 		if workerID == "" {
 			t.Fatal("task not assigned to worker")
 		}
+	}
+}
+
+func TestDBWatcherCallbackFires(t *testing.T) {
+	watcher, err := CreateDBWatcher(activeDB)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	callbackActivated := false
+
+	callback := func() {
+		callbackActivated = true
+	}
+
+	watcher.AddCallback(callback)
+
+	err = DBExec("CREATE TABLE test (value ANY)")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(time.Millisecond * 20)
+
+	if !callbackActivated {
+		t.Fatal("Callback never activated")
+	}
+}
+
+func TestDBWatcherHandlesData(t *testing.T) {
+	watcher, err := CreateDBWatcher(activeDB)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	DBExec("CREATE TABLE source (value ANY)")
+	DBExec("CREATE TABLE dest (value ANY)")
+
+	callback := func() {
+		data, err := DBGetSingle[string]("SELECT * FROM source")
+
+		if err != nil {
+			panic(err)
+		}
+
+		err = DBExec("INSERT INTO dest VALUES (?)", data)
+
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	watcher.AddCallback(callback)
+
+	err = DBExec("INSERT INTO source VALUES (?)", "test")
+
+	if err != nil {
+		panic(err)
+	}
+
+	time.Sleep(time.Millisecond * 20)
+
+	retValue, err := DBGetSingle[string]("SELECT * FROM dest")
+
+	if err != nil {
+		panic(err)
+	}
+
+	if retValue != "test" {
+		t.Fatal("failed to move value from source to dest")
 	}
 }
