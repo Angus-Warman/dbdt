@@ -4,19 +4,32 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 )
 
 func TestMain(m *testing.M) {
-	err := os.RemoveAll("./testing")
+	runnerDir := os.Getenv("RUNNER_TEMP")
 
-	if err != nil {
-		panic(err)
+	if runnerDir != "" { // On github actions
+		SetActiveFolder(runnerDir)
+	} else {
+		tempDir := os.TempDir()
+		tempFolder := filepath.Join(tempDir, "dbdt_testing")
+
+		err := os.RemoveAll(tempFolder)
+
+		if err != nil {
+			panic(err)
+		}
+
+		SetActiveFolder(tempFolder)
 	}
 
-	SetActiveFolder("./testing")
 	SetActiveDB("data.db")
+
+	os.Exit(m.Run())
 }
 
 func TestKeyValue(t *testing.T) {
