@@ -63,7 +63,11 @@ func SetValue(key string, value string) {
 func GetValue(key string) string {
 	checkInit()
 
-	query := "SELECT row_value FROM key_values WHERE row_key = ?"
+	if key == "" {
+		return ""
+	}
+
+	query := "SELECT row_value FROM key_values WHERE row_key = ? LIMIT 1"
 	db := openKVDB()
 	value, err := GetSingle[string](db, query, key)
 
