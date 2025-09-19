@@ -346,3 +346,40 @@ func TestDBWatcherHandlesData(t *testing.T) {
 		t.Fatal("failed to move value from source to dest")
 	}
 }
+
+func TestDBGetGrid(t *testing.T) {
+	err := DBExec("CREATE TABLE IF NOT EXISTS gridtest (id INTEGER PRIMARY KEY, value TEXT)")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = DBExec("DELETE FROM gridtest")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	values := []string{"A", "B", "C", "D"}
+	for i, v := range values {
+		err = DBExec("INSERT INTO gridtest VALUES (?, ?)", i+1, v)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	grid, err := DBGetGrid("SELECT * FROM gridtest")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(grid.Rows) != len(values) {
+		t.Fatalf("expected %d rows, got %d", len(values), len(grid.Rows))
+	}
+
+	for i, expectedValue := range values {
+		gotValue := grid.Rows[i][1] // Second column is Value
+
+		if expectedValue != gotValue {
+			t.Fatalf("expected %v, got %v", expectedValue, gotValue)
+		}
+	}
+}

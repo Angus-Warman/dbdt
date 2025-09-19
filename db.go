@@ -691,7 +691,10 @@ func GetGrid(db *sql.DB, query string, args ...any) (Grid, error) {
 			return Grid{}, err
 		}
 
-		output.Rows = append(output.Rows, rowValues)
+		row := make([]any, numColumns)
+		copy(row, rowValues)
+
+		output.Rows = append(output.Rows, row)
 	}
 
 	return output, nil
