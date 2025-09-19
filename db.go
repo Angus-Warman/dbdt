@@ -700,6 +700,18 @@ func GetGrid(db *sql.DB, query string, args ...any) (Grid, error) {
 	return output, nil
 }
 
+func DBGetRows(query string, args ...any) ([]map[string]any, error) {
+	db, err := openActiveDB()
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer db.Close()
+
+	return GetRows(db, query, args...)
+}
+
 func GetRows(db *sql.DB, query string, args ...any) ([]map[string]any, error) {
 	queryRows, err := db.Query(query, args...)
 
@@ -745,14 +757,56 @@ func GetRows(db *sql.DB, query string, args ...any) ([]map[string]any, error) {
 	return outputRows, nil
 }
 
-func GetRow(db *sql.DB, query string, args ...any) (map[string]any, error) {
-	rows, err := GetRows(db, query, args...)
+func DBGetRow(query string, args ...any) (map[string]any, error) {
+	db, err := openActiveDB()
 
 	if err != nil {
 		return nil, err
 	}
 
-	return rows[0], nil
+	defer db.Close()
+
+	return GetRow(db, query, args...)
+}
+
+func GetRow(db *sql.DB, query string, args ...any) (map[string]any, error) {
+	queryRows, err := db.Query(query, args...)
+
+	if err != nil {
+		return nil, err
+	}
+
+	columns, err := queryRows.Columns()
+
+	if err != nil {
+		return nil, err
+	}
+
+	numColumns := len(columns)
+
+	pointers := make([]any, numColumns)
+	values := make([]any, numColumns)
+
+	for i := range pointers {
+		pointers[i] = &values[i] // Assign pointers to elements of the container slice
+	}
+
+	queryRows.Next()
+	err = queryRows.Scan(pointers...)
+
+	if err != nil {
+		return nil, err
+	}
+
+	outputRow := map[string]any{}
+
+	for i := range numColumns {
+		column := columns[i]
+		value := values[i]
+		outputRow[column] = value
+	}
+
+	return outputRow, nil
 }
 
 func DBGetColumn[T any](query string, args ...any) ([]T, error) {
