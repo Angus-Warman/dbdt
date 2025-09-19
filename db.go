@@ -26,6 +26,10 @@ func SetActiveDBPath(dbPath string) {
 	activeDB = dbPath
 }
 
+func ActiveDBPath() string {
+	return activeDB
+}
+
 func openActiveDB() (*sql.DB, error) {
 	if activeFolder == "" {
 		return nil, errors.New("folder not initialised")
