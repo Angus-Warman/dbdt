@@ -178,9 +178,14 @@ func DBInsert[T any](entity *T) error {
 		return err
 	}
 
-	defer (*db).Close()
+	defer db.Close()
 
 	return Insert(db, entity)
+}
+
+func DBAdd[T any](entity T) error {
+	ptr := &entity
+	return DBInsert(ptr)
 }
 
 func Add[T any](db *sql.DB, entity T) error {
@@ -554,7 +559,12 @@ func FindAll[T any](db *sql.DB, query string, args ...any) ([]T, error) {
 	fieldIndexByColumn := map[string][]int{}
 
 	for _, column := range grid.Columns {
-		field, _ := targetType.FieldByName(column)
+		field, ok := targetType.FieldByName(column)
+
+		if !ok {
+			continue
+		}
+
 		fieldIndexByColumn[column] = field.Index
 	}
 
@@ -565,7 +575,12 @@ func FindAll[T any](db *sql.DB, query string, args ...any) ([]T, error) {
 
 		for columnIndex, column := range grid.Columns {
 			value := rowValues[columnIndex]
-			fieldIndex := fieldIndexByColumn[column]
+			fieldIndex, ok := fieldIndexByColumn[column]
+
+			if !ok {
+				continue
+			}
+
 			field := reflectValue.FieldByIndex(fieldIndex)
 
 			// Handle bool special case, stored as int
@@ -715,15 +730,15 @@ func DBGetRows(query string, args ...any) ([]map[string]any, error) {
 }
 
 func GetRows(db *sql.DB, query string, args ...any) ([]map[string]any, error) {
-	queryRows, err := db.Query(query, args...)
+	rows, err := db.Query(query, args...)
 
 	if err != nil {
 		return nil, err
 	}
 
-	defer queryRows.Close()
+	defer rows.Close()
 
-	columns, err := queryRows.Columns()
+	columns, err := rows.Columns()
 
 	if err != nil {
 		return nil, err
@@ -740,8 +755,8 @@ func GetRows(db *sql.DB, query string, args ...any) ([]map[string]any, error) {
 
 	outputRows := []map[string]any{}
 
-	for queryRows.Next() {
-		err = queryRows.Scan(pointers...)
+	for rows.Next() {
+		err = rows.Scan(pointers...)
 
 		if err != nil {
 			return nil, err
@@ -774,15 +789,15 @@ func DBGetRow(query string, args ...any) (map[string]any, error) {
 }
 
 func GetRow(db *sql.DB, query string, args ...any) (map[string]any, error) {
-	queryRows, err := db.Query(query, args...)
+	rows, err := db.Query(query, args...)
 
 	if err != nil {
 		return nil, err
 	}
 
-	defer queryRows.Close()
+	defer rows.Close()
 
-	columns, err := queryRows.Columns()
+	columns, err := rows.Columns()
 
 	if err != nil {
 		return nil, err
@@ -797,8 +812,8 @@ func GetRow(db *sql.DB, query string, args ...any) (map[string]any, error) {
 		pointers[i] = &values[i] // Assign pointers to elements of the container slice
 	}
 
-	queryRows.Next()
-	err = queryRows.Scan(pointers...)
+	rows.Next()
+	err = rows.Scan(pointers...)
 
 	if err != nil {
 		return nil, err

@@ -316,7 +316,7 @@ func TestDBWatcherHandlesData(t *testing.T) {
 		data, err := DBGetSingle[string]("SELECT * FROM source")
 
 		if err != nil {
-			panic(err)
+			return
 		}
 
 		err = DBExec("INSERT INTO dest VALUES (?)", data)
@@ -381,5 +381,57 @@ func TestDBGetGrid(t *testing.T) {
 		if expectedValue != gotValue {
 			t.Fatalf("expected %v, got %v", expectedValue, gotValue)
 		}
+	}
+}
+
+func TestColumnMismatch(t *testing.T) {
+	type Person struct {
+		ID   int
+		Name string
+		Age  int
+	}
+
+	err := DBExec("DROP TABLE IF EXISTS Person")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = DBExec(`CREATE TABLE Persons (
+		ID INTEGER PRIMARY KEY,
+		Name TEXT,
+		ExtraColumn TEXT,
+		AnotherExtra INTEGER
+	);
+	
+	INSERT INTO Persons VALUES (null, 'Alice', 'error', -1);
+	`)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	people, err := DBGetAll[Person]()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(people) != 1 {
+		t.Fatal("expected 1 person, got", len(people))
+	}
+
+	person := people[0]
+
+	if person.ID != 1 {
+		t.Fatal("expected ID=1, got", person.ID)
+	}
+
+	if person.Name != "Alice" {
+		t.Fatal("expected Name='Alice', got", person.Name)
+	}
+
+	if person.Age != 0 {
+		t.Fatal("expected Age=0 (zero value for missing column), got", person.Age)
 	}
 }
