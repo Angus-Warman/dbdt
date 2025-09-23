@@ -667,6 +667,8 @@ func GetGrid(db *sql.DB, query string, args ...any) (Grid, error) {
 		return Grid{}, err
 	}
 
+	defer rows.Close()
+
 	columns, err := rows.Columns()
 
 	if err != nil {
@@ -718,6 +720,8 @@ func GetRows(db *sql.DB, query string, args ...any) ([]map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	defer queryRows.Close()
 
 	columns, err := queryRows.Columns()
 
@@ -776,6 +780,8 @@ func GetRow(db *sql.DB, query string, args ...any) (map[string]any, error) {
 		return nil, err
 	}
 
+	defer queryRows.Close()
+
 	columns, err := queryRows.Columns()
 
 	if err != nil {
@@ -827,6 +833,8 @@ func GetColumn[T any](db *sql.DB, query string, args ...any) ([]T, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	defer rows.Close()
 
 	value := *new(T)
 	values := []T{}
