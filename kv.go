@@ -34,7 +34,7 @@ func initKV() error {
 		return err
 	}
 
-	err = Exec(db, query)
+	err = ExecDB(db, query)
 
 	if err != nil {
 		return err
@@ -72,7 +72,7 @@ func SetValue(key string, value string) {
 		return
 	}
 
-	err = Exec(db, query, key, value)
+	err = ExecDB(db, query, key, value)
 
 	if err != nil {
 		logError(err)
@@ -96,7 +96,7 @@ func GetValue(key string) string {
 
 	query := "SELECT row_value FROM key_values WHERE row_key = ? LIMIT 1"
 
-	value, err := GetSingle[string](db, query, key)
+	value, err := GetSingleDB[string](db, query, key)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

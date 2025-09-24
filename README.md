@@ -59,25 +59,25 @@ type Customer struct {
 }
 
 func main() {
-	dbdt.DBCreateTable[Customer]()
+	dbdt.CreateTable[Customer]()
 
 	alice := Customer{0, "Alice", "alice@email.com"}
 
-	dbdt.DBAdd(alice)
-	// dbdt.DBInsert(&alice) // If you need to use the automatic ROWID, use DBInsert
+	dbdt.Add(alice)
+	// dbdt.Insert(&alice) // If you need to use the automatic ROWID, use DBInsert
 
 	newCustomers := []Customer{
 		{0, "Bob", ""},
 		{106, "Carol", "carol@email.com"}, // specific ID number
 	}
 
-	dbdt.DBAddAll(newCustomers)
+	dbdt.AddAll(newCustomers)
 
-	customers, _ := dbdt.DBGetAll[Customer]()
+	customers, _ := dbdt.GetAll[Customer]()
 
 	fmt.Println(customers)
 
-	validCustomers, _ := dbdt.DBFindAll[Customer]("SELECT * FROM Customers WHERE Email IS NOT NULL AND Email != ''")
+	validCustomers, _ := dbdt.FindAll[Customer]("SELECT * FROM Customers WHERE Email IS NOT NULL AND Email != ''")
 
 	fmt.Println(validCustomers)
 }

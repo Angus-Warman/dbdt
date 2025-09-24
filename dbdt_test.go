@@ -69,7 +69,7 @@ type Internal struct {
 }
 
 func TestCreateTable(t *testing.T) {
-	err := DBCreateTable[Entity]()
+	err := CreateTable[Entity]()
 
 	if err != nil {
 		t.Fatal(err)
@@ -86,7 +86,7 @@ func TestCreateTable(t *testing.T) {
 		Internal{"test", 1},
 	}
 
-	err = DBInsert(&entity)
+	err = Insert(&entity)
 
 	if err != nil {
 		t.Fatal(err)
@@ -99,13 +99,13 @@ func TestCreateTable(t *testing.T) {
 	// Set ID back to 0 and re-use
 	entity.ID = 0
 
-	err = DBInsert(&entity)
+	err = Insert(&entity)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	rows, err := DBGetAll[Entity]()
+	rows, err := GetAll[Entity]()
 
 	if err != nil {
 		t.Fatal(err)
@@ -140,7 +140,7 @@ func TestCreateTable(t *testing.T) {
 
 func TestUpdate(t *testing.T) {
 
-	err := DBCreateTable[Entity]()
+	err := CreateTable[Entity]()
 
 	if err != nil {
 		t.Fatal(err)
@@ -157,7 +157,7 @@ func TestUpdate(t *testing.T) {
 		Internal{"test", 1},
 	}
 
-	err = DBInsert(&entity)
+	err = Insert(&entity)
 
 	if err != nil {
 		t.Fatal(err)
@@ -167,13 +167,13 @@ func TestUpdate(t *testing.T) {
 
 	entity.Text = "world"
 
-	err = DBUpdate(entity)
+	err = Update(entity)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	returned, err := DBGet[Entity](id)
+	returned, err := Get[Entity](id)
 
 	if err != nil {
 		t.Fatal(err)
@@ -192,9 +192,9 @@ type Item struct {
 
 func TestInsertAll(t *testing.T) {
 
-	DBExec("DELETE FROM Items")
+	Exec("DELETE FROM Items")
 
-	err := DBCreateTable[Item]()
+	err := CreateTable[Item]()
 
 	if err != nil {
 		t.Fatal(err)
@@ -206,13 +206,13 @@ func TestInsertAll(t *testing.T) {
 		{0, "3"},
 	}
 
-	err = DBInsertAll(jobs)
+	err = InsertAll(jobs)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := DBGetAll[Item]()
+	got, err := GetAll[Item]()
 
 	if err != nil {
 		t.Fatal(err)
@@ -229,16 +229,16 @@ type Task struct {
 
 func TestAssigningTasks(t *testing.T) {
 
-	DBExec("DELETE FROM Tasks")
+	Exec("DELETE FROM Tasks")
 
 	numTasks := 10
 	numWorkers := 10
 
 	tasks := make([]Task, numTasks)
 
-	DBCreateTable[Task]()
+	CreateTable[Task]()
 
-	DBAddAll(tasks)
+	AddAllDB(tasks)
 
 	var wg sync.WaitGroup
 	wg.Add(numWorkers)
@@ -249,7 +249,7 @@ func TestAssigningTasks(t *testing.T) {
 
 			query := "UPDATE Tasks SET AssignedTo = ? WHERE rowid = (SELECT MIN(rowid) FROM Tasks WHERE AssignedTo = '')"
 
-			err := DBExec(query, workerID)
+			err := Exec(query, workerID)
 
 			if err != nil {
 				panic(err)
@@ -261,7 +261,7 @@ func TestAssigningTasks(t *testing.T) {
 
 	wg.Wait()
 
-	assignedTo, err := DBGetColumn[string]("SELECT AssignedTo FROM Tasks")
+	assignedTo, err := GetColumn[string]("SELECT AssignedTo FROM Tasks")
 
 	if err != nil {
 		t.Fatal(err)
@@ -289,7 +289,7 @@ func TestDBWatcherCallbackFires(t *testing.T) {
 
 	watcher.AddCallback(callback)
 
-	err = DBExec("CREATE TABLE test (value ANY)")
+	err = Exec("CREATE TABLE test (value ANY)")
 
 	if err != nil {
 		t.Fatal(err)
@@ -309,17 +309,17 @@ func TestDBWatcherHandlesData(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	DBExec("CREATE TABLE source (value ANY)")
-	DBExec("CREATE TABLE dest (value ANY)")
+	Exec("CREATE TABLE source (value ANY)")
+	Exec("CREATE TABLE dest (value ANY)")
 
 	callback := func() {
-		data, err := DBGetSingle[string]("SELECT * FROM source")
+		data, err := GetSingle[string]("SELECT * FROM source")
 
 		if err != nil {
 			return
 		}
 
-		err = DBExec("INSERT INTO dest VALUES (?)", data)
+		err = Exec("INSERT INTO dest VALUES (?)", data)
 
 		if err != nil {
 			panic(err)
@@ -328,7 +328,7 @@ func TestDBWatcherHandlesData(t *testing.T) {
 
 	watcher.AddCallback(callback)
 
-	err = DBExec("INSERT INTO source VALUES (?)", "test")
+	err = Exec("INSERT INTO source VALUES (?)", "test")
 
 	if err != nil {
 		panic(err)
@@ -336,7 +336,7 @@ func TestDBWatcherHandlesData(t *testing.T) {
 
 	time.Sleep(time.Millisecond * 20)
 
-	retValue, err := DBGetSingle[string]("SELECT * FROM dest")
+	retValue, err := GetSingle[string]("SELECT * FROM dest")
 
 	if err != nil {
 		panic(err)
@@ -348,25 +348,25 @@ func TestDBWatcherHandlesData(t *testing.T) {
 }
 
 func TestDBGetGrid(t *testing.T) {
-	err := DBExec("CREATE TABLE IF NOT EXISTS gridtest (id INTEGER PRIMARY KEY, value TEXT)")
+	err := Exec("CREATE TABLE IF NOT EXISTS gridtest (id INTEGER PRIMARY KEY, value TEXT)")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = DBExec("DELETE FROM gridtest")
+	err = Exec("DELETE FROM gridtest")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	values := []string{"A", "B", "C", "D"}
 	for i, v := range values {
-		err = DBExec("INSERT INTO gridtest VALUES (?, ?)", i+1, v)
+		err = Exec("INSERT INTO gridtest VALUES (?, ?)", i+1, v)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	grid, err := DBGetGrid("SELECT * FROM gridtest")
+	grid, err := GetGrid("SELECT * FROM gridtest")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -391,13 +391,13 @@ func TestColumnMismatch(t *testing.T) {
 		Age  int
 	}
 
-	err := DBExec("DROP TABLE IF EXISTS Person")
+	err := Exec("DROP TABLE IF EXISTS Person")
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = DBExec(`CREATE TABLE Persons (
+	err = Exec(`CREATE TABLE Persons (
 		ID INTEGER PRIMARY KEY,
 		Name TEXT,
 		ExtraColumn TEXT,
@@ -411,7 +411,7 @@ func TestColumnMismatch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	people, err := DBGetAll[Person]()
+	people, err := GetAll[Person]()
 
 	if err != nil {
 		t.Fatal(err)

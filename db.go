@@ -30,7 +30,7 @@ func ActiveDBPath() string {
 	return activeDB
 }
 
-func openActiveDB() (*sql.DB, error) {
+func OpenActiveDB() (*sql.DB, error) {
 	if activeFolder == "" {
 		return nil, errors.New("folder not initialised")
 	}
@@ -42,8 +42,8 @@ func openActiveDB() (*sql.DB, error) {
 	return OpenDB(activeDB)
 }
 
-func OpenDB(databasePath string) (*sql.DB, error) {
-	return sql.Open("sqlite3", databasePath)
+func OpenDB(dbPath string) (*sql.DB, error) {
+	return sql.Open("sqlite3", dbPath)
 }
 
 func getDBAffinity(field reflect.StructField) string {
@@ -76,7 +76,7 @@ func getDBAffinity(field reflect.StructField) string {
 	return "ANY"
 }
 
-func getTableName(entityType reflect.Type) string {
+func GetTableName(entityType reflect.Type) string {
 	name := entityType.Name()
 
 	if strings.HasSuffix(name, "s") {
@@ -90,8 +90,8 @@ func getTableName(entityType reflect.Type) string {
 	return name + "s"
 }
 
-func DBCreateTable[T any]() error {
-	db, err := openActiveDB()
+func CreateTable[T any]() error {
+	db, err := OpenActiveDB()
 
 	if err != nil {
 		return err
@@ -99,7 +99,7 @@ func DBCreateTable[T any]() error {
 
 	defer db.Close()
 
-	return CreateTable[T](db)
+	return CreateTableDB[T](db)
 }
 
 func getExportedFields(targetType reflect.Type) []reflect.StructField {
@@ -140,9 +140,9 @@ func getExportedFields(targetType reflect.Type) []reflect.StructField {
 	return exportedFields
 }
 
-func CreateTable[T any](db *sql.DB) error {
+func CreateTableDB[T any](db *sql.DB) error {
 	targetType := reflect.TypeFor[T]()
-	tableName := getTableName(targetType)
+	tableName := GetTableName(targetType)
 	fields := getExportedFields(targetType)
 
 	query := fmt.Sprintf("CREATE TABLE IF NOT EXISTS \"%s\" (\n", tableName)
@@ -168,11 +168,11 @@ func CreateTable[T any](db *sql.DB) error {
 
 	query += ");"
 
-	return Exec(db, query)
+	return ExecDB(db, query)
 }
 
-func DBInsert[T any](entity *T) error {
-	db, err := openActiveDB()
+func Insert[T any](entity *T) error {
+	db, err := OpenActiveDB()
 
 	if err != nil {
 		return err
@@ -180,22 +180,22 @@ func DBInsert[T any](entity *T) error {
 
 	defer db.Close()
 
-	return Insert(db, entity)
+	return InsertDB(db, entity)
 }
 
-func DBAdd[T any](entity T) error {
+func Add[T any](entity T) error {
 	ptr := &entity
-	return DBInsert(ptr)
+	return Insert(ptr)
 }
 
-func Add[T any](db *sql.DB, entity T) error {
+func AddDB[T any](db *sql.DB, entity T) error {
 	ptr := &entity
-	return Insert(db, ptr)
+	return InsertDB(db, ptr)
 }
 
-func Insert[T any](db *sql.DB, entity *T) error {
+func InsertDB[T any](db *sql.DB, entity *T) error {
 	targetType := reflect.TypeOf(*entity)
-	tableName := getTableName(targetType)
+	tableName := GetTableName(targetType)
 	fields := getExportedFields(targetType)
 	reflectValue := reflect.ValueOf(*entity)
 	entityValues := make([]any, len(fields))
@@ -250,18 +250,18 @@ func Insert[T any](db *sql.DB, entity *T) error {
 	return nil
 }
 
-func DBAddAll[T any](entities []T) error {
+func AddAllDB[T any](entities []T) error {
 	entityPtrs := make([]*T, len(entities))
 
 	for i := 0; i < len(entities); i++ {
 		entityPtrs[i] = &entities[i]
 	}
 
-	return DBInsertAll(entityPtrs)
+	return InsertAll(entityPtrs)
 }
 
-func DBInsertAll[T any](entities []*T) error {
-	db, err := openActiveDB()
+func InsertAll[T any](entities []*T) error {
+	db, err := OpenActiveDB()
 
 	if err != nil {
 		return err
@@ -269,12 +269,12 @@ func DBInsertAll[T any](entities []*T) error {
 
 	defer db.Close()
 
-	return InsertAll(db, entities)
+	return InsertAllDB(db, entities)
 }
 
-func InsertAll[T any](db *sql.DB, entities []*T) error {
+func InsertAllDB[T any](db *sql.DB, entities []*T) error {
 	targetType := reflect.TypeFor[T]()
-	tableName := getTableName(targetType)
+	tableName := GetTableName(targetType)
 	fields := getExportedFields(targetType)
 
 	useRowID := false
@@ -359,8 +359,8 @@ func InsertAll[T any](db *sql.DB, entities []*T) error {
 	return transaction.Commit()
 }
 
-func DBUpdate[T any](entity T) error {
-	db, err := openActiveDB()
+func Update[T any](entity T) error {
+	db, err := OpenActiveDB()
 
 	if err != nil {
 		return err
@@ -368,12 +368,12 @@ func DBUpdate[T any](entity T) error {
 
 	defer db.Close()
 
-	return Update(db, entity)
+	return UpdateDB(db, entity)
 }
 
-func Update[T any](db *sql.DB, entity T) error {
+func UpdateDB[T any](db *sql.DB, entity T) error {
 	targetType := reflect.TypeFor[T]()
-	tableName := getTableName(targetType)
+	tableName := GetTableName(targetType)
 	fields := getExportedFields(targetType)
 	entityValues := reflect.ValueOf(entity)
 	parameters := []any{}
@@ -405,12 +405,12 @@ func Update[T any](db *sql.DB, entity T) error {
 
 	query += " WHERE ID = ?;"
 
-	return Exec(db, query, parameters...)
+	return ExecDB(db, query, parameters...)
 }
 
 func UpdateAll[T any](db *sql.DB, entities []T) error {
 	targetType := reflect.TypeFor[T]()
-	tableName := getTableName(targetType)
+	tableName := GetTableName(targetType)
 	fields := getExportedFields(targetType)
 
 	query := "UPDATE " + tableName + " SET "
@@ -481,8 +481,8 @@ func UpdateAll[T any](db *sql.DB, entities []T) error {
 	return transaction.Commit()
 }
 
-func DBGet[T any](id any) (T, error) {
-	db, err := openActiveDB()
+func Get[T any](id any) (T, error) {
+	db, err := OpenActiveDB()
 
 	if err != nil {
 		return *new(T), err
@@ -490,16 +490,16 @@ func DBGet[T any](id any) (T, error) {
 
 	defer db.Close()
 
-	return Get[T](db, id)
+	return GetDB[T](db, id)
 }
 
-func Get[T any](db *sql.DB, id any) (T, error) {
+func GetDB[T any](db *sql.DB, id any) (T, error) {
 	targetType := reflect.TypeFor[T]()
-	tableName := getTableName(targetType)
+	tableName := GetTableName(targetType)
 
 	query := "SELECT * FROM " + tableName + " WHERE ID = ? LIMIT 1"
 
-	entities, err := FindAll[T](db, query, id)
+	entities, err := FindAllDB[T](db, query, id)
 
 	if err != nil {
 		return *new(T), err
@@ -512,8 +512,8 @@ func Get[T any](db *sql.DB, id any) (T, error) {
 	return entities[0], err
 }
 
-func DBGetAll[T any]() ([]T, error) {
-	db, err := openActiveDB()
+func GetAll[T any]() ([]T, error) {
+	db, err := OpenActiveDB()
 
 	if err != nil {
 		return nil, err
@@ -521,20 +521,20 @@ func DBGetAll[T any]() ([]T, error) {
 
 	defer db.Close()
 
-	return GetAll[T](db)
+	return GetAllDB[T](db)
 }
 
-func GetAll[T any](db *sql.DB) ([]T, error) {
+func GetAllDB[T any](db *sql.DB) ([]T, error) {
 	targetType := reflect.TypeFor[T]()
-	tableName := getTableName(targetType)
+	tableName := GetTableName(targetType)
 
 	query := "SELECT * FROM " + tableName
 
-	return FindAll[T](db, query)
+	return FindAllDB[T](db, query)
 }
 
-func DBFindAll[T any](query string, args ...any) ([]T, error) {
-	db, err := openActiveDB()
+func FindAll[T any](query string, args ...any) ([]T, error) {
+	db, err := OpenActiveDB()
 
 	if err != nil {
 		return nil, err
@@ -542,11 +542,11 @@ func DBFindAll[T any](query string, args ...any) ([]T, error) {
 
 	defer db.Close()
 
-	return FindAll[T](db, query, args...)
+	return FindAllDB[T](db, query, args...)
 }
 
-func FindAll[T any](db *sql.DB, query string, args ...any) ([]T, error) {
-	grid, err := GetGrid(db, query, args...)
+func FindAllDB[T any](db *sql.DB, query string, args ...any) ([]T, error) {
+	grid, err := GetGridDB(db, query, args...)
 
 	if err != nil {
 		return nil, err
@@ -614,8 +614,8 @@ func FindAll[T any](db *sql.DB, query string, args ...any) ([]T, error) {
 	return output, nil
 }
 
-func DBExec(query string, args ...any) error {
-	db, err := openActiveDB()
+func Exec(query string, args ...any) error {
+	db, err := OpenActiveDB()
 
 	if err != nil {
 		return err
@@ -623,17 +623,17 @@ func DBExec(query string, args ...any) error {
 
 	defer db.Close()
 
-	return Exec(db, query, args...)
+	return ExecDB(db, query, args...)
 }
 
-func Exec(db *sql.DB, query string, args ...any) error {
+func ExecDB(db *sql.DB, query string, args ...any) error {
 	_, err := db.Exec(query, args...)
 
 	return err
 }
 
-func DBGetSingle[T any](query string, args ...any) (T, error) {
-	db, err := openActiveDB()
+func GetSingle[T any](query string, args ...any) (T, error) {
+	db, err := OpenActiveDB()
 
 	if err != nil {
 		return *new(T), err
@@ -641,10 +641,10 @@ func DBGetSingle[T any](query string, args ...any) (T, error) {
 
 	defer db.Close()
 
-	return GetSingle[T](db, query, args...)
+	return GetSingleDB[T](db, query, args...)
 }
 
-func GetSingle[T any](db *sql.DB, query string, args ...any) (T, error) {
+func GetSingleDB[T any](db *sql.DB, query string, args ...any) (T, error) {
 	row := db.QueryRow(query, args...)
 
 	value := *new(T)
@@ -663,8 +663,8 @@ type Grid struct {
 	Rows    [][]any
 }
 
-func DBGetGrid(query string, args ...any) (Grid, error) {
-	db, err := openActiveDB()
+func GetGrid(query string, args ...any) (Grid, error) {
+	db, err := OpenActiveDB()
 
 	if err != nil {
 		return Grid{}, err
@@ -672,10 +672,10 @@ func DBGetGrid(query string, args ...any) (Grid, error) {
 
 	defer db.Close()
 
-	return GetGrid(db, query, args...)
+	return GetGridDB(db, query, args...)
 }
 
-func GetGrid(db *sql.DB, query string, args ...any) (Grid, error) {
+func GetGridDB(db *sql.DB, query string, args ...any) (Grid, error) {
 	rows, err := db.Query(query, args...)
 
 	if err != nil {
@@ -717,8 +717,8 @@ func GetGrid(db *sql.DB, query string, args ...any) (Grid, error) {
 	return output, nil
 }
 
-func DBGetRows(query string, args ...any) ([]map[string]any, error) {
-	db, err := openActiveDB()
+func GetRows(query string, args ...any) ([]map[string]any, error) {
+	db, err := OpenActiveDB()
 
 	if err != nil {
 		return nil, err
@@ -726,10 +726,10 @@ func DBGetRows(query string, args ...any) ([]map[string]any, error) {
 
 	defer db.Close()
 
-	return GetRows(db, query, args...)
+	return GetRowsDB(db, query, args...)
 }
 
-func GetRows(db *sql.DB, query string, args ...any) ([]map[string]any, error) {
+func GetRowsDB(db *sql.DB, query string, args ...any) ([]map[string]any, error) {
 	rows, err := db.Query(query, args...)
 
 	if err != nil {
@@ -776,8 +776,8 @@ func GetRows(db *sql.DB, query string, args ...any) ([]map[string]any, error) {
 	return outputRows, nil
 }
 
-func DBGetRow(query string, args ...any) (map[string]any, error) {
-	db, err := openActiveDB()
+func GetRow(query string, args ...any) (map[string]any, error) {
+	db, err := OpenActiveDB()
 
 	if err != nil {
 		return nil, err
@@ -785,10 +785,10 @@ func DBGetRow(query string, args ...any) (map[string]any, error) {
 
 	defer db.Close()
 
-	return GetRow(db, query, args...)
+	return GetRowDB(db, query, args...)
 }
 
-func GetRow(db *sql.DB, query string, args ...any) (map[string]any, error) {
+func GetRowDB(db *sql.DB, query string, args ...any) (map[string]any, error) {
 	rows, err := db.Query(query, args...)
 
 	if err != nil {
@@ -830,8 +830,8 @@ func GetRow(db *sql.DB, query string, args ...any) (map[string]any, error) {
 	return outputRow, nil
 }
 
-func DBGetColumn[T any](query string, args ...any) ([]T, error) {
-	db, err := openActiveDB()
+func GetColumn[T any](query string, args ...any) ([]T, error) {
+	db, err := OpenActiveDB()
 
 	if err != nil {
 		return nil, err
@@ -839,10 +839,10 @@ func DBGetColumn[T any](query string, args ...any) ([]T, error) {
 
 	defer db.Close()
 
-	return GetColumn[T](db, query, args...)
+	return GetColumnDB[T](db, query, args...)
 }
 
-func GetColumn[T any](db *sql.DB, query string, args ...any) ([]T, error) {
+func GetColumnDB[T any](db *sql.DB, query string, args ...any) ([]T, error) {
 	rows, err := db.Query(query, args...)
 
 	if err != nil {
