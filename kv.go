@@ -3,6 +3,7 @@ package dbdt
 import (
 	"database/sql"
 	"errors"
+	"log"
 	"path/filepath"
 )
 
@@ -10,30 +11,36 @@ const kvDB = "__kv.db"
 
 var kvDBPath = filepath.Join(".", kvDB)
 
-func openKVDB() *sql.DB {
-	db, err := OpenDB(kvDBPath)
-
-	if err != nil {
-		panic(err)
-	}
-
-	return db
+func logError(err error) {
+	log.Printf("Error with %v, %v", kvDBPath, err)
 }
 
-func initKV() {
+func initKV() error {
 	if activeFolder == "" {
-		panic("activeFolder not set")
+		return errors.New("cannot use KV functions, activeFolder not set")
+	}
+
+	if kvDBPath == "" {
+		return errors.New("KV db path not set")
 	}
 
 	kvDBPath = filepath.Join(activeFolder, kvDB)
 
 	query := "CREATE TABLE IF NOT EXISTS key_values (row_key TEXT PRIMARY KEY, row_value ANY)"
-	db := openKVDB()
-	err := Exec(db, query)
+
+	db, err := OpenDB(kvDBPath)
 
 	if err != nil {
-		panic(err)
+		return err
 	}
+
+	err = Exec(db, query)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 var initialised = false
@@ -43,7 +50,12 @@ func checkInit() {
 		return
 	}
 
-	initKV()
+	err := initKV()
+
+	if err != nil {
+		logError(err)
+		return
+	}
 
 	initialised = true
 }
@@ -52,11 +64,19 @@ func SetValue(key string, value string) {
 	checkInit()
 
 	query := "INSERT OR REPLACE INTO key_values (row_key, row_value) VALUES (?, ?)"
-	db := openKVDB()
-	err := Exec(db, query, key, value)
+
+	db, err := OpenDB(kvDBPath)
 
 	if err != nil {
-		panic(err)
+		logError(err)
+		return
+	}
+
+	err = Exec(db, query, key, value)
+
+	if err != nil {
+		logError(err)
+		return
 	}
 }
 
@@ -67,16 +87,25 @@ func GetValue(key string) string {
 		return ""
 	}
 
+	db, err := OpenDB(kvDBPath)
+
+	if err != nil {
+		logError(err)
+		return ""
+	}
+
 	query := "SELECT row_value FROM key_values WHERE row_key = ? LIMIT 1"
-	db := openKVDB()
+
 	value, err := GetSingle[string](db, query, key)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return ""
+			// Do nothing
+		} else {
+			logError(err)
 		}
 
-		panic(err)
+		return ""
 	}
 
 	return value
