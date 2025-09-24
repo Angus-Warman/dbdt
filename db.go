@@ -250,7 +250,7 @@ func InsertDB[T any](db *sql.DB, entity *T) error {
 	return nil
 }
 
-func AddAllDB[T any](entities []T) error {
+func AddAll[T any](entities []T) error {
 	entityPtrs := make([]*T, len(entities))
 
 	for i := 0; i < len(entities); i++ {

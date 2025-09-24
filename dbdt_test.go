@@ -238,7 +238,7 @@ func TestAssigningTasks(t *testing.T) {
 
 	CreateTable[Task]()
 
-	AddAllDB(tasks)
+	AddAll(tasks)
 
 	var wg sync.WaitGroup
 	wg.Add(numWorkers)
